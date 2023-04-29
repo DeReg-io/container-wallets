@@ -1,0 +1,6 @@
+[submodule "lib/forge-std"]
+	path = lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "lib/smol-huff-deployer"]
+	path = lib/smol-huff-deployer
+	url = https://github.com/philogy/smol-huff-deployer
