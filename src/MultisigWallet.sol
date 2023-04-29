@@ -22,8 +22,7 @@ contract MultisigWallet {
     uint256 internal constant MAX_THRESHHOLD = 256;
 
     bytes internal constant WALLET_CODE =
-        hex"63439fab91595259595260c2803803805952808259395f5f91604401601c335af461002c573d5f5f3e3d5ffd5b805f5f395ff35f7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc548060db1c6101fe16805f363059526055600b60ff81538260e81c59527f2d0458a407fa25a99863f50be5660c5522853fcce3855a63e11abd049b9488a659526055600b203c5f5f36378036019081528181602001526040015f5f925af43d5f5f3e61008b573d5ffd5b3d5ff3";
-
+        hex"337f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc55609580602e6000396000f360007f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc548060db1c6101fe16806000363059526055600b60ff81538660e81c59527fb926d5f9997ae396c520af832d4f8bfc53f8b1d5e2d7f106c55c91180ee6430a5952203c36600060003780360190815281816020015260400160006000925af43d600060003e610090573d6000fd5b3d6000f3";
     StorageBytes internal containerContents;
 
     error ContainerExceedsMaxSize();
@@ -66,11 +65,17 @@ contract MultisigWallet {
             // forgefmt: disable-next-item
             unchecked { ++i; }
         }
+        bytes memory walletDeployCode = WALLET_CODE;
         bytes memory config = abi.encodePacked(uint8(threshhold - 1), members);
-        bytes memory walletDeployCode = abi.encodePacked(WALLET_CODE, config);
         assembly {
-            wallet := create2(0, add(walletDeployCode, 0x20), mload(walletDeployCode), salt)
-            if iszero(wallet) {
+            let configSize := mload(config)
+            mstore(config, salt)
+            let fullSalt := keccak256(config, add(0x20, configSize))
+            mstore(config, configSize)
+            wallet := create2(0, add(walletDeployCode, 0x20), mload(walletDeployCode), fullSalt)
+        }
+        if (wallet == address(0)) {
+            assembly {
                 let initHash := keccak256(add(walletDeployCode, 0x20), mload(walletDeployCode))
                 mstore8(0x00, 0xff)
                 mstore(0x35, initHash)
@@ -79,6 +84,8 @@ contract MultisigWallet {
                 wallet := keccak256(0x00, 0x55)
                 mstore(0x35, 0)
             }
+        } else {
+            MultisigWallet(wallet).initialize(config);
         }
     }
 
@@ -107,8 +114,8 @@ contract MultisigWallet {
         containerContents.write(contents);
         assembly {
             // Deploy bytecode of `./ContainerCreator.huff`.
-            mstore(0x00, 0x6365d6aa8a5f525f5f6004601c335afa3d5f5f3e3d5ff3)
-            let container := create2(0, 0x9, 0x17, nonce)
+            mstore(0x00, 0x6365d6aa8a600052600060006004601c335afa3d600060003e3d6000f3)
+            let container := create2(0, 0x3, 0x1d, nonce)
             if iszero(container) {
                 // Signature of `ContainerAlreadyDeployed()`.
                 mstore(0x00, 0x98a76186)

@@ -13,68 +13,42 @@
 
 #define constant IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
 // Hash of compiled bytecode `0x6365d6aa8a5f525f5f6004601c335afa3d5f5f3e3d5ff3`.
-#define constant CONTAINER_INIT_HASH = 0x2d0458a407fa25a99863f50be5660c5522853fcce3855a63e11abd049b9488a6
-
-#define constant BASE_SIZE = 0xc2
-#define function initialize(bytes) nonpayable returns ()
-
+#define constant CONTAINER_INIT_HASH = 0xb926d5f9997ae396c520af832d4f8bfc53f8b1d5e2d7f106c55c91180ee6430a
 
 #define macro CONSTRUCTOR() = takes(0) returns(0) {
-    // -- Prepare Initialize Call.
-    __FUNC_SIG(initialize) msize mstore // []
-    msize msize mstore                  // []
-    __codesize(CONSTRUCTOR) __codesize(MAIN) add
-    dup1                                // [base_size, base_size]
-    codesize sub                        // [config_size, base_size]
-    dup1                                // [config_size, config_size, base_size]
-    msize mstore                        // [config_size, base_size]
-    dup1 dup3 msize                     // [0x60, base_size, config_size, config_size, base_size]
-    codecopy                            // [config_size, base_size]
+    caller [IMPL_SLOT] sstore // []
 
-    // -- Execute Intializing Call.
-    push0 push0                         // [0, 0, config_size, base_size]
-    swap2                               // [config_size, 0, 0, base_size]
-    0x44 add                            // [payload_size, 0, 0, base_size]
-    0x1c                                // [28, payload_size, 0, 0, base_size]
-    caller gas delegatecall             // [success, base_size]
+    __codesize(MAIN) dup1     // [main_size, main_size]
+    __codesize(CONSTRUCTOR)   // [cstr_size, main_size, main_size]
+    0x0                       // [0, cstr_size, main_size, main_size]
+    codecopy                  // [main_size]
 
-    // -- Bubble Revert If Failed.
-    no_cstr_revert jumpi                // [base_size]
-        returndatasize push0 push0      // [0, 0, rdz, base_size]
-        returndatacopy                  // [base_size]
-        returndatasize push0            // [0, rdz, base_size]
-        revert
-    no_cstr_revert:                     // [base_size]
-
-    // -- Return Main Code.
-    dup1 push0 push0                    // [0, 0, base_size, base_size]
-    codecopy                            // [base_size]
-    push0                               // [0, base_size]
+    0x00                      // [0, main_size]
     return
 }
 
 #define macro MAIN() = takes(0) returns(0) {
     // -- Prepare Config Data Load.
-    push0                              // [0]
+    0x0                              // [0]
     [IMPL_SLOT] sload                  // [core_data, 0]
     dup1 0xdb shr 0x1fe and            // [config_byte_size, core_data, 0]
     dup1                               // [config_byte_size, config_byte_size, core_data, 0]
-    push0 calldatasize                 // [cdz, 0, config_byte_size, core_data, 0]
+    0x0 calldatasize                 // [cdz, 0, config_byte_size, core_data, 0]
 
     // -- Derive Config Data Container Address.
     address msize mstore               // [cdz, 0, config_byte_size, config_byte_size, core_data, 0]
     0x55 0xb                           // [0xb, 0x55, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
     0xff dup2 mstore8                  // [0xb, 0x55, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
-    dup3 0xe8 shr                      // [config_nonce, 0xb, 0x55, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
+    dup7 0xe8 shr                      // [config_nonce, 0xb, 0x55, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
     msize mstore                       // [0xb, 0x55, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
     [CONTAINER_INIT_HASH] msize mstore // [0xb, 0x55, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
-    0x55 0xb sha3                      // [container_addr_dirty, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
+    sha3                               // [container_addr_dirty, cdz, 0, config_byte_size, config_byte_size, core_data, 0]
 
     // -- Load Config Data.
     extcodecopy                        // [config_byte_size, core_data, 0]
 
     // -- Load Calldata.
-    push0 push0 calldatasize           // [cdz, 0, 0, config_byte_size, core_data, 0]
+    calldatasize 0x0 0x0           // [cdz, 0, 0, config_byte_size, core_data, 0]
     calldatacopy                       // [config_byte_size, core_data, 0]
 
     // -- Store Size.
@@ -89,16 +63,16 @@
 
     // -- Delegatecall.
     0x40 add                           // [payload_size, core_data, 0]
-    push0 push0                        // [0, 0, payload_size, core_data, 0]
+    0x0 0x0                        // [0, 0, payload_size, core_data, 0]
     swap3                              // [core_data, 0, payload_size, 0, 0]
     gas delegatecall                   // [success]
 
     // -- Copy Returndata.
-    returndatasize push0 push0         // [0, 0, rdz, success]
+    returndatasize 0x0 0x0         // [0, 0, rdz, success]
     returndatacopy                     // [success]
 
     no_revert jumpi                    // []
-        returndatasize push0 revert
+        returndatasize 0x0 revert
     no_revert:
-        returndatasize push0 return
+        returndatasize 0x0 return
 }
