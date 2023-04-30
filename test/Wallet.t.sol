@@ -27,7 +27,7 @@ contract WalletTest is Test {
         Sig[] memory sigs = new Sig[](2);
         bytes32 hash = wallet.getSendHash(rec, 5 ether);
         sigs[0] = sign(hash, keys[0]);
-        sigs[1] = sign(hash, 32);
+        sigs[1] = sign(hash, keys[1]);
 
         wallet.sendETH(rec, 5 ether, sigs);
     }
