@@ -8,8 +8,18 @@ library WalletCoreDataLib {
 
     error MaxConfigNonce();
 
-    // Core Functions
-
+    /**
+     * @dev Storage layout
+     * +-----------+------------+----------------------------+
+     * | Bit Range | Type       | Description                |
+     * +-----------+------------+----------------------------+
+     * | 0-159     |   address  |  Proxy implementation      |
+     * | 160-191   |   uint32   |  Wallet nonce              |
+     * | 192-223   |   uint32   |  Last used timestamp       |
+     * | 224-231   |   uint8    |  Config size (EVM words)   |
+     * | 232-255   |   uint24   |  Config nonce              |
+     * +-----------+------------+----------------------------+
+     */
     function getCoreData() internal pure returns (uint256 value) {
         assembly {
             value := calldataload(sub(calldatasize(), 0x20))
@@ -83,7 +93,6 @@ library WalletCoreDataLib {
         }
     }
 
-    // Default Wallet Specific
     function updateNonce(uint256 coreData) internal pure returns (uint256 newCoreData, uint256 nonce) {
         nonce = (coreData >> 160) & 0xffffffff;
         unchecked {
