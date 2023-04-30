@@ -17,23 +17,22 @@ library StorageBytesLib {
         }
     }
 
-    function write(StorageBytes storage self, bytes calldata value) internal {
+    function write(StorageBytes storage self, bytes memory content) internal {
         assembly {
             // Derive slot.
             mstore(0x00, self.slot)
             let slot := keccak256(0x00, 0x20)
-            // Setup initial values.
-            let offset := value.offset
-            let len := value.length
+            let len := mload(content)
             // Cap maximum length and store length + first 30 bytes.
             // `max(len, MAX_BYTES_LENGTH)`
             len := xor(mul(xor(len, MAX_BYTES_LENGTH), gt(len, MAX_BYTES_LENGTH)), len)
-            sstore(slot, or(shl(0xf0, len), shr(0x10, calldataload(offset))))
+            sstore(slot, mload(add(0x1e, content)))
 
             // Store remainder.
+            let offset := add(content, 0x20)
             for { let i := 0x1e } lt(i, len) { i := add(i, 0x20) } {
                 slot := add(slot, 1)
-                sstore(slot, calldataload(add(offset, i)))
+                sstore(slot, mload(add(offset, i)))
             }
         }
     }

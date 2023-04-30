@@ -2,7 +2,7 @@
 pragma solidity 0.8.19;
 
 import {Test} from "forge-std/Test.sol";
-import {MultisigWallet} from "src/MultisigWallet.sol";
+import {MultisigWallet, Sig} from "src/MultisigWallet.sol";
 
 /// @author philogy <https://github.com/philogy>
 contract WalletTest is Test {
@@ -13,12 +13,27 @@ contract WalletTest is Test {
     }
 
     function testCreation() public {
+        uint256[] memory keys = new uint[](3);
         address[] memory members = new address[](3);
-        members[0] = makeAddr("user1");
-        members[1] = makeAddr("user2");
-        members[2] = makeAddr("user3");
+        (members[0], keys[0]) = makeAddrAndKey("user1");
+        (members[1], keys[1]) = makeAddrAndKey("user2");
+        (members[2], keys[2]) = makeAddrAndKey("user3");
 
-        address wallet = factory.createWallet(members, 2, bytes32(0));
-        emit log_named_address("wallet", wallet);
+        address rec = makeAddr("recipient");
+
+        MultisigWallet wallet = MultisigWallet(payable(factory.createWallet(members, 2, bytes32(0))));
+        vm.deal(address(wallet), 10 ether);
+
+        Sig[] memory sigs = new Sig[](2);
+        bytes32 hash = wallet.getSendHash(rec, 5 ether);
+        sigs[0] = sign(hash, keys[0]);
+        sigs[1] = sign(hash, 32);
+
+        wallet.sendETH(rec, 5 ether, sigs);
+    }
+
+    function sign(bytes32 hash, uint256 key) internal returns (Sig memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, hash);
+        return Sig(v, r, s);
     }
 }
