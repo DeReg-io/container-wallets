@@ -1,5 +1,6 @@
 #define function getContainerContents() nonpayable returns ()
 
+// TODO: Replace `0x0` with `push0` once foundry supports.
 #define macro CONSTRUCTOR() = takes(0) returns(0) {
     // -- Prepare call.
     __FUNC_SIG(getContainerContents) // [fn.selector]
