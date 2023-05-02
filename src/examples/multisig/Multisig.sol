@@ -93,6 +93,10 @@ contract Multisig is ContainerFactory, IAccount {
         }
     }
 
+    function createConfig(uint24 nonce, bytes calldata config) external onlyCall {
+        _storeConfig(msg.sender, nonce, config);
+    }
+
     // -- Wallet Functions
 
     modifier onlyEntryPoint() {
@@ -151,6 +155,33 @@ contract Multisig is ContainerFactory, IAccount {
 
     function execute(bytes calldata payload) external onlyEntryPoint onlyDelegate {
         CompactExecuteLib.exec(payload);
+    }
+
+    function updateAuth(address[] calldata members, uint256 threshold) external onlyDelegate onlyWallet {
+        _checkMembers(members);
+        bytes memory config = MultiAuthLib.buildConfig(members, threshold);
+
+        uint256 coreData = MultisigWalletDataLib.getCoreData();
+        uint256 configNonce;
+        (coreData, configNonce) = coreData.updateConfig(uint8((config.length + 31) / 32));
+        coreData.saveCoreData();
+
+        Multisig(payable(_THIS)).createConfig(uint24(configNonce), config);
+    }
+
+    function updateImplementation(address newImplementation, bytes memory initCall) external onlyDelegate onlyWallet {
+        // forgefmt: disable-next-item
+        MultisigWalletDataLib
+            .getCoreData()
+            .updateImplementation(newImplementation)
+            .saveCoreData();
+
+        assembly {
+            if iszero(delegatecall(gas(), newImplementation, add(initCall, 0x20), mload(initCall), 0, 0)) {
+                returndatacopy(0, 0, returndatasize())
+                revert(0, returndatasize())
+            }
+        }
     }
 
     function getNonce() external view onlyDelegate returns (uint256) {
