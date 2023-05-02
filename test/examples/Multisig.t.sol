@@ -77,7 +77,6 @@ contract MultisigTest is Test {
         calls[0] = Call({target: trnsfrRec, value: amount, callData: new bytes(0)});
 
         bytes memory payload = CompactExecuteLib.encode(calls);
-        emit log_named_bytes("payload", payload);
 
         UserOperation memory op = UserOperation({
             sender: address(wallet),

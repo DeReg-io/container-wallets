@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {StorageBytesLib, StorageBytes} from "../utils/StorageBytesLib.sol";
+import {DualSelfImpl} from "./DualSelfImpl.sol";
 
 /// @author philogy <https://github.com/philogy>
-abstract contract ContainerFactory {
+abstract contract ContainerFactory is DualSelfImpl {
     using StorageBytesLib for StorageBytes;
 
     uint256 internal constant MAX_CONTAINER_WORDS = 255;
@@ -12,28 +13,14 @@ abstract contract ContainerFactory {
 
     StorageBytes private containerContents;
 
-    address internal immutable FACTORY = address(this);
-
-    modifier walletMethod() {
-        if (address(this) == FACTORY) revert NotDelegatecall();
-        _;
-    }
-
-    modifier factoryMethod() {
-        if (address(this) != FACTORY) revert Delegatecall();
-        _;
-    }
-
-    error NotDelegatecall();
-    error Delegatecall();
     error ContainerExceedsMaxSize(uint256 contentSize);
     error ContainerAlreadyDeployed();
 
     constructor() {
-        containerContents.wipeSetInit(MAX_CONTAINER_WORDS);
+        containerContents.wipeSetInit(MAX_CONTAINER_SIZE);
     }
 
-    function getContainerContents() external view factoryMethod {
+    function getContainerContents() external view onlyCall {
         bytes memory contents = containerContents.read();
         assembly {
             return(add(contents, 0x20), mload(contents))

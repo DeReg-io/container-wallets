@@ -33,8 +33,11 @@ library MultisigWalletDataLib {
     }
 
     function updateImplementation(uint256 coreData, address implementation) internal pure returns (uint256) {
-        return (coreData & 0xffffffffffffffffffffffff0000000000000000000000000000000000000000)
-            | uint256(uint160(implementation));
+        assembly {
+            coreData :=
+                or(and(coreData, 0xffffffffffffffffffffffff0000000000000000000000000000000000000000), implementation)
+        }
+        return coreData;
     }
 
     function updateConfigSize(uint256 coreData, uint8 wordSize) internal pure returns (uint256) {
@@ -56,11 +59,6 @@ library MultisigWalletDataLib {
         if (configNonce == 0) {
             revert MaxConfigNonce();
         }
-    }
-
-    function updateExtraData(uint256 coreData, uint64 extraData) internal pure returns (uint256) {
-        return
-            (coreData & 0xffffffff0000000000000000ffffffffffffffffffffffffffffffffffffffff) | (uint256(extraData) << 64);
     }
 
     function saveCoreData(uint256 coreData) internal {

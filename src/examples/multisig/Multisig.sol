@@ -30,11 +30,7 @@ contract Multisig is ContainerFactory, IAccount {
     error MembersNotSorted();
     error AlreadyInitialized();
     error NotEntryPoint();
-
-    modifier onlyEntryPoint() {
-        if (msg.sender != ENTRY_POINT) revert NotEntryPoint();
-        _;
-    }
+    error NotWallet();
 
     constructor(address entryPoint) {
         ENTRY_POINT = entryPoint;
@@ -42,7 +38,7 @@ contract Multisig is ContainerFactory, IAccount {
 
     function createWallet(address[] calldata members, uint256 threshold, bytes32 salt)
         external
-        factoryMethod
+        onlyCall
         returns (address wallet)
     {
         _checkMembers(members);
@@ -75,7 +71,7 @@ contract Multisig is ContainerFactory, IAccount {
     function predictDeploy(address[] calldata members, uint256 threshold, bytes32 salt)
         external
         view
-        factoryMethod
+        onlyCall
         returns (address wallet)
     {
         _checkMembers(members);
@@ -99,9 +95,19 @@ contract Multisig is ContainerFactory, IAccount {
 
     // -- Wallet Functions
 
-    receive() external payable walletMethod {}
+    modifier onlyEntryPoint() {
+        if (msg.sender != ENTRY_POINT) revert NotEntryPoint();
+        _;
+    }
 
-    function initialize(uint256 contentLength) external walletMethod {
+    modifier onlyWallet() {
+        if (msg.sender != address(this)) revert NotWallet();
+        _;
+    }
+
+    receive() external payable onlyDelegate {}
+
+    function initialize(uint256 contentLength) external onlyDelegate {
         uint256 coreData = MultisigWalletDataLib.getCoreData();
 
         if (coreData.getPing() != 0) revert AlreadyInitialized();
@@ -116,19 +122,18 @@ contract Multisig is ContainerFactory, IAccount {
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, address, uint256 missingAccountFunds)
         external
         onlyEntryPoint
-        walletMethod
+        onlyDelegate
         returns (uint256 validationData)
     {
         uint256 coreData = MultisigWalletDataLib.getCoreData();
         // Get signers from signatures.
         address[] memory signers = MultisigWalletDataLib.getSigners(userOpHash, userOp.signature);
         // Verify signers.
-        bytes memory config = coreData.getConfig(FACTORY);
+        bytes memory config = coreData.getConfig(_THIS);
 
         bool valid = MultiAuthLib.isAuth(config, signers);
 
         uint256 nonce;
-        // forgefmt: disable-next-item
         (coreData, nonce) = coreData.updatePing().updateNonce();
 
         coreData.saveCoreData();
@@ -144,20 +149,20 @@ contract Multisig is ContainerFactory, IAccount {
         }
     }
 
-    function execute(bytes calldata payload) external onlyEntryPoint walletMethod {
+    function execute(bytes calldata payload) external onlyEntryPoint onlyDelegate {
         CompactExecuteLib.exec(payload);
     }
 
-    function getNonce() external view walletMethod returns (uint256) {
+    function getNonce() external view onlyDelegate returns (uint256) {
         return MultisigWalletDataLib.getCoreData().getNonce();
     }
 
-    function lastPing() external view walletMethod returns (uint256) {
+    function lastPing() external view onlyDelegate returns (uint256) {
         return MultisigWalletDataLib.getCoreData().getPing();
     }
 
-    function getConfig() external view walletMethod returns (bytes memory) {
-        return MultisigWalletDataLib.getCoreData().getConfig(FACTORY);
+    function getConfig() external view onlyDelegate returns (bytes memory) {
+        return MultisigWalletDataLib.getCoreData().getConfig(_THIS);
     }
 
     function _storeConfig(address wallet, uint24 configNonce, bytes memory config) internal {

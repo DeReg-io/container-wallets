@@ -30,7 +30,7 @@ library CompactExecuteLib {
 
     /**
      * @dev Helper function that encodes payloads to be called by `exec`
-     */ 
+     */
     function encode(Call[] memory calls) internal view returns (bytes memory payload) {
         uint256 pointer;
         assembly {
@@ -85,9 +85,7 @@ library CompactExecuteLib {
                 // Decode and update target.
                 let pointerShift := add(2, mul(hasValue, 10))
                 let reuse := iszero(and(op, REUSE_MASK))
-                if reuse {
-                    target := shr(96, shl(shl(3, pointerShift), cword))
-                }
+                if reuse { target := shr(96, shl(shl(3, pointerShift), cword)) }
                 // Read length.
                 let len := shr(2, op)
                 // Update pointer.
