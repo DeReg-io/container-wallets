@@ -2,10 +2,10 @@
 pragma solidity 0.8.19;
 
 import {MultiAuthLib} from "../../utils/MultiAuthLib.sol";
+import {CompactExecuteLib} from "../../utils/CompactExecuteLib.sol";
 import {ContainerFactory} from "../../base/ContainerFactory.sol";
 import {MultisigWalletDataLib} from "./MultisigWalletDataLib.sol";
 import {IAccount, UserOperation} from "account-abstraction/interfaces/IAccount.sol";
-import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 struct Call {
     address target;
@@ -16,15 +16,11 @@ struct Call {
 /// @author philogy <https://github.com/philogy>
 contract Multisig is ContainerFactory, IAccount {
     using MultisigWalletDataLib for uint256;
-    using SafeTransferLib for address;
 
     address public immutable ENTRY_POINT;
 
     /// @dev 255 * 32 / 20 = 408 (no remainder) => (-1) 407
     uint256 internal constant MAX_MEMBERS = 407;
-
-    uint256 internal constant SIG_SUCC = 0;
-    uint256 internal constant SIG_FAILED = 1;
 
     bytes internal constant WALLET_CODE =
         hex"337f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc55604b80602e6000396000f336600060003760007f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc548036523660200160006000925af43d600060003e610046573d6000fd5b3d6000f3";
@@ -34,7 +30,6 @@ contract Multisig is ContainerFactory, IAccount {
     error MembersNotSorted();
     error AlreadyInitialized();
     error NotEntryPoint();
-    error InvalidStartNonce(uint);
 
     modifier onlyEntryPoint() {
         if (msg.sender != ENTRY_POINT) revert NotEntryPoint();
@@ -113,12 +108,12 @@ contract Multisig is ContainerFactory, IAccount {
 
         // forgefmt: disable-next-item
         coreData
-            .updatePing(uint32(block.timestamp))
+            .updatePing()
             .updateConfigSize(uint8((contentLength + 31) / 32))
             .saveCoreData();
     }
 
-    function validateUserOp(UserOp calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, address, uint256 missingAccountFunds)
         external
         onlyEntryPoint
         walletMethod
@@ -126,39 +121,31 @@ contract Multisig is ContainerFactory, IAccount {
     {
         uint256 coreData = MultisigWalletDataLib.getCoreData();
         // Get signers from signatures.
-        address[] memory signers = MultisigWalletDataLib.getSigners(userOpHash, userOp.sig);
+        address[] memory signers = MultisigWalletDataLib.getSigners(userOpHash, userOp.signature);
         // Verify signers.
         bytes memory config = coreData.getConfig(FACTORY);
-        if (!MultiAuthLib.isAuth(config, signers)) return SIG_FAILED;
-        if (userOp.initCode.length == 0) {
-            uint256 expectedNonce;
-            (coreData, expectedNonce) = coreData.updateNonce();
-            if (expectedNonce != userOp.nonce) return SIG_FAILED;
-        } else if (userOp.nonce != 0) {
-            revert InvalidStartNonce(userOp.nonce);
-        }
+
+        bool valid = MultiAuthLib.isAuth(config, signers);
+
+        uint256 nonce;
+        // forgefmt: disable-next-item
+        (coreData, nonce) = coreData.updatePing().updateNonce();
+
         coreData.saveCoreData();
 
-        if (missingAccountFunds > 0) msg.sender.safeTransferETH(missingAccountFunds);
+        uint256 iniLen = userOp.initCode.length;
+        uint256 opNonce = userOp.nonce;
+        assembly {
+            // bool valid = valid && nonce == opNonce && (nonce == 0 || initCode.length == 0)
+            // validationData = valid ? 0 : 1
+            validationData := iszero(and(valid, and(eq(nonce, opNonce), or(iszero(nonce), iszero(iniLen)))))
 
-        return SIG_SUCC;
+            if missingAccountFunds { pop(call(gas(), caller(), missingAccountFunds, 0, 0, 0, 0)) }
+        }
     }
 
-    function execute(Call[] calldata calls) external onlyEntryPoint walletMethod {
-        uint256 totalCalls = calls.length;
-        for (uint256 i; i < totalCalls;) {
-            Call calldata c = calls[i];
-            (bool success,) = c.target.call{value: c.value}(c.callData);
-            if (!success) {
-                assembly {
-                    returndatacopy(0, 0, returndatasize())
-                    revert(0, returndatasize())
-                }
-            }
-            unchecked {
-                ++i;
-            }
-        }
+    function execute(bytes calldata payload) external onlyEntryPoint walletMethod {
+        CompactExecuteLib.exec(payload);
     }
 
     function getNonce() external view walletMethod returns (uint256) {

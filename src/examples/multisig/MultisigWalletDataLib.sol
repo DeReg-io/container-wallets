@@ -93,19 +93,23 @@ library MultisigWalletDataLib {
         }
     }
 
-    function updateNonce(uint256 coreData) internal pure returns (uint256 newCoreData, uint256 nonce) {
-        nonce = getNonce(coreData);
-        unchecked {
-            newCoreData = coreData + 0x010000000000000000000000000000000000000000;
+    function updateNonce(uint256 coreData) internal pure returns (uint256, uint256 nonce) {
+        assembly {
+            nonce := and(shr(160, coreData), 0xffffffff)
+            coreData := add(coreData, 0x10000000000000000000000000000000000000000)
         }
+        return (coreData, nonce);
     }
 
     function getNonce(uint256 coreData) internal pure returns (uint256) {
         return (coreData >> 160) & 0xffffffff;
     }
 
-    function updatePing(uint256 coreData, uint32 time) internal pure returns (uint256) {
-        return (coreData & 0xffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffff) | (uint256(time) << 192);
+    function updatePing(uint256 coreData) internal view returns (uint256 newCoreData) {
+        assembly {
+            newCoreData :=
+                or(and(coreData, 0xffffffff00000000ffffffffffffffffffffffffffffffffffffffffffffffff), shl(192, timestamp()))
+        }
     }
 
     function getPing(uint256 coreData) internal pure returns (uint256) {
@@ -136,7 +140,9 @@ library MultisigWalletDataLib {
                 // Set r + s.
                 calldatacopy(0x40, add(rsOffset, shl(6, i)), 0x40)
                 // Get signer, can be 0 if invalid, `isAuth` will check.
-                pop(staticcall(gas(), ECRECOVER, 0x00, 0x80, add(signerOffset, shl(5, i)), 0x20))
+                let signerDest := add(signerOffset, shl(5, i))
+                mstore(signerDest, 0)
+                pop(staticcall(gas(), ECRECOVER, 0x00, 0x80, signerDest, 0x20))
             }
 
             mstore(0x40, add(signerOffset, shl(5, totalSigners)))

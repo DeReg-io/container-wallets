@@ -2,7 +2,8 @@
 pragma solidity 0.8.19;
 
 import {Test} from "forge-std/Test.sol";
-import {Multisig, Call} from "src/examples/multisig/Multisig.sol";
+import {Multisig} from "src/examples/multisig/Multisig.sol";
+import {CompactExecuteLib, Call} from "src/utils/CompactExecuteLib.sol";
 import {EntryPoint, UserOperation} from "account-abstraction/core/EntryPoint.sol";
 import {LibSort} from "solady/utils/LibSort.sol";
 import {LibString} from "solady/utils/LibString.sol";
@@ -47,7 +48,7 @@ contract MultisigTest is Test {
             sender: address(wallet),
             nonce: 0,
             initCode: abi.encodePacked(factory, abi.encodeCall(wallet.createWallet, (signers, threshold, salt))),
-            callData: abi.encodeCall(wallet.execute, calls),
+            callData: abi.encodeCall(wallet.execute, CompactExecuteLib.encode(calls)),
             callGasLimit: 2e6,
             verificationGasLimit: 2e6,
             preVerificationGas: 2e6,
@@ -75,11 +76,14 @@ contract MultisigTest is Test {
         uint256 amount = 1 ether;
         calls[0] = Call({target: trnsfrRec, value: amount, callData: new bytes(0)});
 
+        bytes memory payload = CompactExecuteLib.encode(calls);
+        emit log_named_bytes("payload", payload);
+
         UserOperation memory op = UserOperation({
             sender: address(wallet),
             nonce: wallet.getNonce(),
             initCode: new bytes(0),
-            callData: abi.encodeCall(wallet.execute, calls),
+            callData: abi.encodeCall(wallet.execute, payload),
             callGasLimit: 2e6,
             verificationGasLimit: 2e6,
             preVerificationGas: 2e6,
