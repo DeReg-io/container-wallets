@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import {MultiAuthLib} from "../../utils/MultiAuthLib.sol";
 import {ContainerFactory} from "../../base/ContainerFactory.sol";
 import {MultisigWalletDataLib} from "./MultisigWalletDataLib.sol";
-import {IAccount, UserOp} from "../../erc4337/IAccount.sol";
+import {IAccount, UserOperation} from "account-abstraction/interfaces/IAccount.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 struct Call {
@@ -50,17 +50,7 @@ contract Multisig is ContainerFactory, IAccount {
         factoryMethod
         returns (address wallet)
     {
-        uint256 totalMembers = members.length;
-        if (totalMembers > MAX_MEMBERS) revert TooManyMembers();
-        if (totalMembers == 0) revert NoMembers();
-        address prevMember = members[0];
-        for (uint256 i = 1; i < totalMembers;) {
-            address newMember = members[i];
-            if (newMember <= prevMember) revert MembersNotSorted();
-            prevMember = newMember;
-            // forgefmt: disable-next-item
-            unchecked { ++i; }
-        }
+        _checkMembers(members);
         bytes memory walletDeployCode = WALLET_CODE;
         bytes memory config = MultiAuthLib.buildConfig(members, threshold);
         bytes32 fullSalt;
@@ -86,6 +76,33 @@ contract Multisig is ContainerFactory, IAccount {
             _storeConfig(wallet, 0, config);
         }
     }
+
+    function predictDeploy(address[] calldata members, uint256 threshold, bytes32 salt)
+        external
+        view
+        factoryMethod
+        returns (address wallet)
+    {
+        _checkMembers(members);
+        bytes memory walletDeployCode = WALLET_CODE;
+        bytes memory config = MultiAuthLib.buildConfig(members, threshold);
+        bytes32 fullSalt;
+        assembly {
+            let configSize := mload(config)
+            mstore(config, salt)
+            fullSalt := keccak256(config, add(0x20, configSize))
+            mstore(config, configSize)
+            let initHash := keccak256(add(walletDeployCode, 0x20), mload(walletDeployCode))
+            mstore8(0x00, 0xff)
+            mstore(0x35, initHash)
+            mstore(0x01, shl(96, address()))
+            mstore(0x15, fullSalt)
+            wallet := keccak256(0x00, 0x55)
+            mstore(0x35, 0)
+        }
+    }
+
+    // -- Wallet Functions
 
     receive() external payable walletMethod {}
 
@@ -144,7 +161,7 @@ contract Multisig is ContainerFactory, IAccount {
         }
     }
 
-    function nonce() external view walletMethod returns (uint256) {
+    function getNonce() external view walletMethod returns (uint256) {
         return MultisigWalletDataLib.getCoreData().getNonce();
     }
 
@@ -162,5 +179,19 @@ contract Multisig is ContainerFactory, IAccount {
             containerSalt := or(shl(96, wallet), configNonce)
         }
         _createContainer(containerSalt, config);
+    }
+
+    function _checkMembers(address[] calldata members) internal pure {
+        uint256 totalMembers = members.length;
+        if (totalMembers > MAX_MEMBERS) revert TooManyMembers();
+        if (totalMembers == 0) revert NoMembers();
+        address prevMember = members[0];
+        for (uint256 i = 1; i < totalMembers;) {
+            address newMember = members[i];
+            if (newMember <= prevMember) revert MembersNotSorted();
+            prevMember = newMember;
+            // forgefmt: disable-next-item
+            unchecked { ++i; }
+        }
     }
 }

@@ -10,9 +10,9 @@
 [submodule "lib/forge-safe-log"]
 	path = lib/forge-safe-log
 	url = https://github.com/philogy/forge-safe-log
-[submodule "lib/account-abstraction"]
-	path = lib/account-abstraction
-	url = https://github.com/eth-infinitism/account-abstraction
 [submodule "lib/openzeppelin-contracts"]
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "lib/account-abstraction"]
+	path = lib/account-abstraction
+	url = https://github.com/eth-infinitism/account-abstraction

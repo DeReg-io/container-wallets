@@ -23,9 +23,10 @@ contract MultisigTest is Test {
     }
 
     function testDirectWalletCreation() public {
-        (Multisig wallet,,) = createWallet("signer_", 3, 2, bytes32(0));
+        (Multisig wallet, address[] memory signers,) = createWallet("signer_", 3, 2, bytes32(0));
 
-        assertEq(wallet.nonce(), 0);
+        assertEq(address(wallet), factory.predictDeploy(signers, 2, bytes32(0)));
+        assertEq(wallet.getNonce(), 0);
     }
 
     function testERC4337Deployment() public {
@@ -62,15 +63,13 @@ contract MultisigTest is Test {
         entryPoint.handleOps(ops, payable(callRec));
 
         assertEq(trnsfrRec.balance, amount);
-        // assertEq(wallet.nonce(), 1);
+        // assertEq(wallet.getNonce(), 1);
     }
 
     function testERC4337Operation() public {
         (Multisig wallet, address[] memory signers, uint256[] memory sk) = createWallet("signer_", 3, 2, bytes32(0));
-        assertEq(wallet.nonce(), 0);
+        assertEq(wallet.getNonce(), 0);
         vm.deal(address(wallet), 10 ether);
-        address trnsfrRec = makeAddr("transfer recipient");
-        address callRec = makeAddr("sponsor");
 
         Call[] memory calls = new Call[](1);
         uint256 amount = 1 ether;
@@ -78,7 +77,7 @@ contract MultisigTest is Test {
 
         UserOperation memory op = UserOperation({
             sender: address(wallet),
-            nonce: wallet.nonce(),
+            nonce: wallet.getNonce(),
             initCode: new bytes(0),
             callData: abi.encodeCall(wallet.execute, calls),
             callGasLimit: 2e6,
@@ -102,7 +101,7 @@ contract MultisigTest is Test {
         entryPoint.handleOps(ops, payable(callRec));
 
         assertEq(trnsfrRec.balance, amount);
-        assertEq(wallet.nonce(), 1);
+        assertEq(wallet.getNonce(), 1);
     }
 
     function createWallet(string memory name, uint256 signerCount, uint256 threshold, bytes32 salt)
