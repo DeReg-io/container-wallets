@@ -163,41 +163,4 @@ library MultiAuthLib {
             authorized := and(gt(validated, threshold), gt(validated, totalValidators))
         }
     }
-
-    function checkAuth(bytes memory config, address[] memory validators) internal pure {
-        assembly {
-            let threshold := add(and(mload(add(config, 1)), 0xff), 1)
-            let validated := 1
-
-            let validatorOffset := add(validators, 0x20)
-            let totalValidators := mload(validators)
-
-            let validatorEndOffset := add(validatorOffset, shl(5, totalValidators))
-            let lastValidator := 0
-
-            let memberOffset := add(config, 0x21)
-            let memberEndOffset := add(memberOffset, mload(config))
-
-            for {} and(lt(validatorOffset, validatorEndOffset), lt(memberOffset, memberEndOffset)) {} {
-                let validator := mload(validatorOffset)
-                validatorOffset := add(validatorOffset, 0x20)
-
-                for {} lt(memberOffset, memberEndOffset) {} {
-                    let member := shr(96, mload(memberOffset))
-                    memberOffset := add(memberOffset, 20)
-                    if iszero(sub(member, validator)) {
-                        validated := add(validated, gt(validator, lastValidator))
-                        lastValidator := validator
-                        break
-                    }
-                }
-            }
-
-            if iszero(and(gt(validated, threshold), gt(validated, totalValidators))) {
-                // Selector of `MultiAuthFailed()`.
-                mstore(0x00, 0x11b03786)
-                revert(0x1c, 0x04)
-            }
-        }
-    }
 }
