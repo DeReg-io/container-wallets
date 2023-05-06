@@ -68,7 +68,7 @@ contract MultisigTest is Test {
     }
 
     function testERC4337Operation() public {
-        (Multisig wallet, address[] memory signers, uint256[] memory sk) = createWallet("signer_", 3, 2, bytes32(0));
+        (Multisig wallet,, uint256[] memory sk) = createWallet("signer_", 3, 2, bytes32(0));
         assertEq(wallet.getNonce(), 0);
         vm.deal(address(wallet), 10 ether);
 
@@ -137,6 +137,7 @@ contract MultisigTest is Test {
 
     function signAndEncode(bytes32 opHash, uint256[] memory sk, uint256[] memory indices)
         internal
+        pure
         returns (bytes memory)
     {
         uint256 packedV;

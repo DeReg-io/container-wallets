@@ -25,7 +25,7 @@ contract DeployTransferMultisig is Script, MultisigTest {
 
         Multisig wallet = Multisig(payable(factory.predictDeploy(signers, 2, bytes32(0))));
 
-        address(wallet).call{value: 5 ether}("");
+        (bool success,) = address(wallet).call{value: 5 ether}("");
 
         Call[] memory calls = new Call[](2);
         uint256 amount = 1 ether;
@@ -57,7 +57,8 @@ contract DeployTransferMultisig is Script, MultisigTest {
         amount = 0.8 ether;
         calls = new Call[](1);
         address recipient = makeAddr("rec_2");
-        recipient.call{value: 1 wei}("");
+        (success,) = recipient.call{value: 1 wei}("");
+        success;
 
         calls[0] = Call({target: recipient, value: amount, callData: new bytes(0)});
 
