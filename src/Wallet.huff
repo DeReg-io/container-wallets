@@ -11,43 +11,42 @@
 
 #define constant IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc
 
-// TODO: Replace `0x0` with `push0` once foundry supports.
 #define macro CONSTRUCTOR() = takes(0) returns(0) {
     caller [IMPL_SLOT] sstore // []
 
     __codesize(MAIN) dup1     // [main_size, main_size]
     __codesize(CONSTRUCTOR)   // [cstr_size, main_size, main_size]
-    0x0                       // [0, cstr_size, main_size, main_size]
+    push0                     // [0, cstr_size, main_size, main_size]
     codecopy                  // [main_size]
 
-    0x00                      // [0, main_size]
+    push0                     // [0, main_size]
     return
 }
 
 #define macro MAIN() = takes(0) returns(0) {
     // -- Prepare Calldata.
-    calldatasize 0x0 0x0           // [0, 0, cdz]
+    calldatasize push0 push0           // [0, 0, cdz]
     calldatacopy                       // []
 
     // -- Append Core Data.
-    0x0                              // [0]
+    push0                              // [0]
     [IMPL_SLOT] sload                  // [core_data, 0]
     dup1 calldatasize                  // [cdz, core_data, core_data, 0]
     mstore                             // [core_data, 0]
 
     // -- Delegatecall.
     calldatasize 0x20 add              // [payload_size, core_data, 0]
-    0x0 0x0                        // [0, 0, payload_size, core_data, 0]
+    push0 push0                        // [0, 0, payload_size, core_data, 0]
     swap3                              // [core_data, 0, payload_size, 0, 0]
     gas delegatecall                   // [success]
 
     // -- Copy Returndata.
-    returndatasize 0x0 0x0         // [0, 0, rdz, success]
+    returndatasize push0 push0         // [0, 0, rdz, success]
     returndatacopy                     // [success]
 
     // -- Return Error/Value.
     no_revert jumpi                    // []
-        returndatasize 0x0 revert
+        returndatasize push0 revert
     no_revert:                         // []
-        returndatasize 0x0 return
+        returndatasize push0 return
 }

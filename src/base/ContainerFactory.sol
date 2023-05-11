@@ -33,8 +33,9 @@ abstract contract ContainerFactory is DualSelfImpl {
         containerContents.write(contents);
         assembly {
             // Deploy bytecode of `../ContainerCreator.huff`.
-            mstore(0x00, 0x6365d6aa8a600052600060006004601c335afa3d600060003e3d6000f3)
-            let container := create2(0, 0x3, 0x1d, salt)
+            mstore(0x00, 0x6365d6aa8a5f525f5f6004601c335afa3d5f5f3e3d5ff3)
+
+            let container := create2(0, 0x9, 0x17, salt)
             if iszero(container) {
                 // Signature of `ContainerAlreadyDeployed()`.
                 mstore(0x00, 0x98a76186)

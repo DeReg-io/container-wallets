@@ -1,22 +1,21 @@
 #define function getContainerContents() nonpayable returns ()
 
-// TODO: Replace `0x0` with `push0` once foundry supports.
 #define macro CONSTRUCTOR() = takes(0) returns(0) {
     // -- Prepare call.
     __FUNC_SIG(getContainerContents) // [fn.selector]
-    0x0 mstore                     // []
+    push0 mstore                     // []
 
     // -- Call `msg.sender.getContainerContents()`.
-    0x0 0x0 0x04 0x1c            // [28, 4, 0, 0]
+    push0 push0 0x04 0x1c            // [28, 4, 0, 0]
     caller                           // [msg.sender, 28, 4, 0, 0]
     gas staticcall                   // [success]
 
     // -- Copy retrieved data to memory.
-    returndatasize 0x0 0x0       // [0, 0, rdz, success]
+    returndatasize push0 push0       // [0, 0, rdz, success]
     returndatacopy                   // [success]
 
     // -- Return final data as bytecode.
-    returndatasize 0x0             // [0, rdz, success]
+    returndatasize push0             // [0, rdz, success]
     return
 }
 

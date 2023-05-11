@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 /// @author philogy <https://github.com/philogy>
 library MultisigWalletDataLib {
     uint256 internal constant ERC1967_IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-    uint256 internal constant CONTAINER_INIT_HASH = 0xb926d5f9997ae396c520af832d4f8bfc53f8b1d5e2d7f106c55c91180ee6430a;
+    uint256 internal constant CONTAINER_INIT_HASH = 0x2d0458a407fa25a99863f50be5660c5522853fcce3855a63e11abd049b9488a6;
 
     error MaxConfigNonce();
 
